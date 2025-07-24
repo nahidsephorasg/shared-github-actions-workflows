@@ -28,7 +28,7 @@ jobs:
             yarn-deps-${{ hashFiles('yarn.lock') }}
       - name: Setup git config
         run: |
-          git config user.name "Md Nahid Mondol"
+          git config user.name "nahidsephorasg"
           git config user.email "mmondol@sephora.sg"
       - name: Create Release
         id: release
