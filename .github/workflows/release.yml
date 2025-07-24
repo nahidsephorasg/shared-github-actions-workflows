@@ -1,0 +1,39 @@
+name: Release Shared Actions
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest   
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }} # Needs a token that has push access to protected branches
+      - name: Prepare repository
+        run: git fetch --unshallow --tags
+      - name: Use Node.js 18.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: yarn-deps-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            yarn-deps-${{ hashFiles('yarn.lock') }}
+      - name: Setup git config
+        run: |
+          git config user.name "Md Nahid Mondol"
+          git config user.email "mmondol@sephora.sg"
+      - name: Create Release
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          yarn install --frozen-lockfile
+          yarn run auto shipit

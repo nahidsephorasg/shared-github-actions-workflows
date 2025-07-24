@@ -1,0 +1,65 @@
+name: Schedule Trivy Cache
+on: 
+  workflow_call:
+    inputs:
+      CACHE_BRANCH: 
+          description: "Branch to cache the Trivy DB"
+          type: 'string'
+          default: 'refs/heads/main'
+      PREFIX_CACHE_KEY:
+          description: "Cache key for Trivy DB"
+          type: 'string'
+          default: 'trivy-db-cache'
+      CACHE_KEY:
+        description: "Cache key for Docker Base Image"
+        type: 'string'
+        default: 'docker-base-image-cache'
+      SAVE_PATH:
+        description: "Path to save the Docker Base Image"
+        type: 'string'
+        default: 'ci/cache/docker/base-image'
+jobs:
+  update-trivy-db:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    steps:
+      - name: Setup oras
+        uses: oras-project/setup-oras@v1
+        
+      - name: Check if cache key exists
+        id: check-if-cache-exists
+        env:
+          CACHE_KEY: ${{ inputs.PREFIX_CACHE_KEY }}-${{ runner.os }}-v2
+        run: |
+          gh extension install actions/gh-actions-cache
+          CACHE_HIT=$(gh actions-cache list --key $CACHE_KEY --branch ${{ inputs.CACHE_BRANCH }} --repo ${{ github.repository }} | grep -q $CACHE_KEY && echo 'true' || echo 'false')
+          echo "cache_hit=$CACHE_HIT" >> $GITHUB_OUTPUT
+
+      - name: Remove existing cache
+        if: ${{ steps.check-if-cache-exists.outputs.cache_hit != 'false' }}
+        env:
+          CACHE_KEY: ${{ inputs.PREFIX_CACHE_KEY }}-${{ runner.os }}-v2
+        run: |
+          echo "Deleting caches..."
+          gh cache delete $CACHE_KEY --repo ${{ github.repository }}
+
+      - name: Download and extract the vulnerability DB
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cache/trivy/db
+          oras pull ghcr.io/aquasecurity/trivy-db:2
+          tar -xzf db.tar.gz -C $GITHUB_WORKSPACE/.cache/trivy/db
+          rm db.tar.gz
+
+      - name: Download and extract the Java DB
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cache/trivy/java-db
+          oras pull ghcr.io/aquasecurity/trivy-java-db:1
+          tar -xzf javadb.tar.gz -C $GITHUB_WORKSPACE/.cache/trivy/java-db
+          rm javadb.tar.gz
+
+      - name: Cache DBs
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/.cache/trivy
+          key: ${{ inputs.PREFIX_CACHE_KEY }}-${{ runner.os }}-v2

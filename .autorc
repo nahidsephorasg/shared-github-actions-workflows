@@ -1,0 +1,9 @@
+{
+  "plugins": [
+    "git-tag",
+    "conventional-commits",
+    "released"
+  ],
+  "owner": "nahidsephorasg",
+  "repo": "shared-github-actions"
+}
